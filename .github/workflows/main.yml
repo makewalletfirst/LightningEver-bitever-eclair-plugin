@@ -1,0 +1,42 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  schedule:
+    # Run every night at midnight.
+    - cron: '0 0 * * *'
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout eclair
+        uses: actions/checkout@v4
+        with:
+          repository: acinq/eclair
+          path: eclair
+    
+      - name: Checkout eclair-plugins
+        uses: actions/checkout@v4
+        with:
+          path: eclair-plugins
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: 'adopt'
+
+      - name: Build eclair
+        run: mvn install -DskipTests
+        working-directory: ./eclair
+
+      - name: Build eclair plugins
+        run: mvn test-compile && mvn test
+        working-directory: ./eclair-plugins
