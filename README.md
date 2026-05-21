@@ -123,3 +123,15 @@ fcm-push {
 ## 라이선스
 
 Apache License, Version 2.0
+
+---
+
+## 260521OFFBOLT12 — 검증 완료
+
+이번 브랜치에서 `fcm-push-plugin` 이 다음 흐름으로 정상 동작함을 폰 검증으로 확인:
+
+1. 폰 B 가 LSP 와 연결 → `FCMToken` (tag 35017) 송신 → LSP 의 `Peer.scala` 가 EventStream 으로 `FcmTokenRegistered` publish → 본 plugin 의 `FcmPushActor` 가 `peer_nodeId → token` 맵에 저장.
+2. 폰 A 가 폰 B 의 BOLT12 offer 로 송금 → LSP `MessageRelay` 가 `invoice_request` onion 메시지를 폰 B 에게 forward 시도 → 폰 B 가 offline 이면 `PeerReadyNotifier` 가 `WakeUpPeerRequested` publish → 본 plugin 이 FCM HTTP v1 (OAuth2 service-account JWT 인증) 으로 push 발사.
+3. 폰 B 가 깨어나 LSP 와 reconnect → invoice 발급 → 폰 A 로 응답 → HTLC 결제 진행 → 폰 B 가 잠금화면에서도 결제 수신.
+
+자세한 가이드는 본 저장소의 상위 LightningEver 프로젝트 폴더의 `260521OFFBOLT12.md` 참조.
