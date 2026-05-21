@@ -34,6 +34,7 @@ class FcmPushPlugin extends Plugin with Logging {
 
   private var config: FcmPushConfig = _
   private val registry: FcmTokenRegistry = new FcmTokenRegistry
+  private var swapInRegistry: SwapInAddressRegistry = _
 
   override def params: PluginParams = new PluginParams {
     override def name: String = "FcmPushPlugin"
@@ -64,8 +65,9 @@ class FcmPushPlugin extends Plugin with Logging {
         }
       }
 
+    swapInRegistry = new SwapInAddressRegistry(kit.nodeParams.chainHash)
     kit.system.actorOf(
-      FcmPushActor.props(config, registry, fcmSender, kit.register),
+      FcmPushActor.props(config, registry, swapInRegistry, fcmSender, kit.register),
       name = "fcm-push-actor",
     )
     logger.info("fcm-push: actor started")

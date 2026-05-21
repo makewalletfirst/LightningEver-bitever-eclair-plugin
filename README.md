@@ -135,3 +135,42 @@ Apache License, Version 2.0
 3. 폰 B 가 깨어나 LSP 와 reconnect → invoice 발급 → 폰 A 로 응답 → HTLC 결제 진행 → 폰 B 가 잠금화면에서도 결제 수신.
 
 자세한 가이드는 본 저장소의 상위 LightningEver 프로젝트 폴더의 `260521OFFBOLT12.md` 참조.
+
+---
+
+## 260522_OFFSWAPIN 추가 변경 (이 브랜치)
+
+**오프라인 스왑인 입금 자동 감지** 를 위한 plugin 측 코드 신설.
+
+### 신규 파일
+
+- `fcm-push/src/main/scala/fr/acinq/eclair/plugins/fcmpush/SwapInAddressRegistry.scala`
+  - peer nodeId ↔ 등록된 swap-in publicKeyScript 양방향 인덱스 (`ConcurrentHashMap`)
+  - 등록 시점에 `addressToPublicKeyScript` 로 미리 디코드해서 hot-path 는 단순 map lookup
+
+### 변경 파일
+
+- `fcm-push/src/main/scala/fr/acinq/eclair/plugins/fcmpush/FcmPushPlugin.scala`
+  - `SwapInAddressRegistry(kit.nodeParams.chainHash)` 인스턴스화 + actor 에 주입
+- `fcm-push/src/main/scala/fr/acinq/eclair/plugins/fcmpush/FcmPushActor.scala`
+  - `SwapInAddressesRegistered` EventStream 구독 → registry 갱신
+  - `NewTransaction` EventStream 구독 → 등록된 swap-in script 와 매칭 → FCM push (reason="SwapInDeposit", payload: tx_id, amount_sat, node_id_hash)
+  - 30분 dedup (`TxId` 키, 같은 tx 의 중복 push 차단)
+  - `FcmTokenUnregistered` 시 `SwapInAddressRegistry.remove(nodeId)` 도 같이 정리
+
+### 현 운영 상태 — 일시 비활성
+
+`SwapInAddressesRegistered` / `NewTransaction` EventStream 구독을 actor `preStart()` 에서 **두 줄 주석 처리** 한 상태:
+
+```scala
+// context.system.eventStream.subscribe(self, classOf[SwapInAddressesRegistered])
+context.system.eventStream.subscribe(self, classOf[PaymentReceived])
+context.system.eventStream.subscribe(self, classOf[WakeUpPeerRequested])
+// context.system.eventStream.subscribe(self, classOf[NewTransaction])
+```
+
+이유: BOLT12 offline 결제와 동시 발동 시 channel reserve violation force-close 가 재현됨. 신규 자동화 코드 자체가 결제 흐름에 영향을 미치는 정확한 메커니즘이 미확인이라, 안전 가드 추가 + 검증이 끝나기 전까지는 호출 자체를 막아둔다. 코드는 모두 유지 — subscribe 두 줄만 복원하면 자동 동작.
+
+기동 로그에 `fcm-push subscribed to EventStream (enabled=true, sender=true, swap-in-auto=DISABLED)` 가 출력되면 비활성 상태가 맞음.
+
+자세한 가이드: LightningEver 프로젝트의 `260522FCM.md`.
