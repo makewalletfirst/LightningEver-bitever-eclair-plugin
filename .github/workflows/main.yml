@@ -35,7 +35,7 @@ jobs:
           distribution: 'adopt'
 
       - name: Build eclair
-        run: ./mvnw install -DskipTests
+        run: ./mvnw install -pl eclair-core,eclair-node -am -DskipTests
         working-directory: ./eclair
 
       - name: Build eclair plugins
