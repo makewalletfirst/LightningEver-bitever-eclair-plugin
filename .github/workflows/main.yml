@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [ master, main ]
   schedule:
-    # Run every night at midnight.
+    # Run every night at midnight. 
     - cron: '0 0 * * *'
 
 jobs:
